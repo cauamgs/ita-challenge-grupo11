@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-popularpet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-popularpet}
+      POSTGRES_DB: ${POSTGRES_DB:-popularpet}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-popularpet} -d ${POSTGRES_DB:-popularpet}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-popularpet}:${POSTGRES_PASSWORD:-popularpet}@db:5432/${POSTGRES_DB:-popularpet}
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-popularpet}:${POSTGRES_PASSWORD:-popularpet}@db:5432/popularpet_test
+      SEED_DIR: /seed
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./seed:/seed:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  db_data:
