@@ -34,12 +34,41 @@ class UserRole(enum.StrEnum):
     GESTOR = "GESTOR"
 
 
+class SyncTrigger(enum.StrEnum):
+    INICIAL = "INICIAL"  # carga inicial no seed
+    MANUAL = "MANUAL"  # botão "Sincronizar agora"
+    AGENDADO = "AGENDADO"  # sincronização automática
+    ARQUIVO = "ARQUIVO"  # upload de arquivo exportado do ERP
+
+
+class SyncStatus(enum.StrEnum):
+    EM_ANDAMENTO = "EM_ANDAMENTO"
+    SUCESSO = "SUCESSO"
+    ERRO = "ERRO"
+
+
+class SyncFrequency(enum.StrEnum):
+    DIARIA = "DIARIA"
+    SEMANAL = "SEMANAL"
+    MENSAL = "MENSAL"
+
+
+class PriceChangeType(enum.StrEnum):
+    INICIAL = "INICIAL"  # primeiro preço conhecido do SKU no canal
+    AUMENTO = "AUMENTO"
+    REDUCAO = "REDUCAO"
+
+
 # Tipos PostgreSQL (criados pela migration; os models não os recriam)
 channel_t = Enum(Channel, name="channel_t", create_type=False)
 recommendation_t = Enum(RecommendationType, name="recommendation_t", create_type=False)
 risk_t = Enum(RiskLevel, name="risk_t", create_type=False)
 decision_t = Enum(DecisionType, name="decision_t", create_type=False)
 user_role_t = Enum(UserRole, name="user_role_t", create_type=False)
+sync_trigger_t = Enum(SyncTrigger, name="sync_trigger_t", create_type=False)
+sync_status_t = Enum(SyncStatus, name="sync_status_t", create_type=False)
+sync_frequency_t = Enum(SyncFrequency, name="sync_frequency_t", create_type=False)
+price_change_t = Enum(PriceChangeType, name="price_change_t", create_type=False)
 
 # Rótulos em português usados no CSV/xlsx e na interface
 CHANNEL_LABELS: dict[Channel, str] = {

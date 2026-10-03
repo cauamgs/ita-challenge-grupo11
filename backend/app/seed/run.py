@@ -5,9 +5,10 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.engine import CsvImportEngine
+from app.models import SyncTrigger
 from app.repositories import rounds as rounds_repo
-from app.seed.base_xlsx import seed_base
 from app.seed.users import seed_users
+from app.services import erp_schedule, erp_sync
 from app.services import rounds as rounds_service
 
 XLSX_FILE = "base_popular_pet.xlsx"
@@ -19,8 +20,12 @@ def seed_all(session: Session, seed_dir: Path) -> list[str]:
     created = seed_users(session)
     log.append(f"usuários criados: {created}")
 
-    counts = seed_base(session, seed_dir / XLSX_FILE)
-    log.append(f"base lida: {counts}")
+    if erp_sync.has_any_sync(session):
+        log.append("base do ERP já sincronizada: mantida")
+    else:
+        run = erp_sync.run_sync(session, trigger=SyncTrigger.INICIAL, content=seed_dir / XLSX_FILE)
+        log.append(f"sincronização inicial com o ERP: {run.status} — {run.message}")
+    erp_schedule.get_schedule(session)  # cria a agenda padrão (desligada)
 
     round_files = sorted(seed_dir.glob(ROUND_CSV_GLOB))
     if not round_files:

@@ -1,11 +1,20 @@
 from fastapi import APIRouter
 
-from app.api import decisions, health, metrics, recommendations, rounds, users
+from app.api import (
+    analysts,
+    dashboard,
+    decisions,
+    erp,
+    health,
+    metrics,
+    products,
+    recommendations,
+    rounds,
+    users,
+)
 
 api_router = APIRouter(prefix="/api")
-api_router.include_router(health.router)
-api_router.include_router(users.router)
-api_router.include_router(rounds.router)
-api_router.include_router(recommendations.router)
-api_router.include_router(decisions.router)
-api_router.include_router(metrics.router)
+for module in (
+    health, users, dashboard, rounds, recommendations, decisions, metrics, products, analysts, erp,
+):  # fmt: skip
+    api_router.include_router(module.router)

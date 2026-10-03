@@ -1,6 +1,7 @@
 import os
 
 # Os testes rodam num banco separado; precisa ser definido antes de importar a aplicação.
+os.environ["SCHEDULER_ENABLED"] = "false"
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://popularpet:popularpet@db:5432/popularpet_test"
 )
@@ -29,7 +30,8 @@ ROUND_CSV_MISSING = (
 requires_round_csv = pytest.mark.skipif(not ROUND_CSV.exists(), reason=ROUND_CSV_MISSING)
 
 TABLES = (
-    "decisions, recommendations, rounds, stock_snapshot, product_channel_state, products, users"
+    "price_history, erp_sync_runs, erp_sync_schedule, decisions, recommendations, rounds, "
+    "stock_snapshot, product_channel_state, products, users"
 )
 
 
@@ -37,7 +39,10 @@ TABLES = (
 def _schema() -> None:
     with engine.begin() as conn:
         conn.execute(text("drop schema public cascade; create schema public"))
-        for enum_name in ("channel_t", "recommendation_t", "risk_t", "decision_t", "user_role_t"):
+        for enum_name in (
+            "channel_t", "recommendation_t", "risk_t", "decision_t", "user_role_t",
+            "sync_trigger_t", "sync_status_t", "sync_frequency_t", "price_change_t",
+        ):  # fmt: skip
             conn.execute(text(f"drop type if exists {enum_name} cascade"))
     command.upgrade(Config(str(BACKEND_DIR / "alembic.ini")), "head")
 

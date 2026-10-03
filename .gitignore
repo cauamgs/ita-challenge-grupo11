@@ -8,3 +8,6 @@ __pycache__/
 node_modules/
 dist/
 *.log
+
+# Saídas do motor (resultados de rodada) não vão para o repositório
+seed/recomendacoes_rodada_*.csv
