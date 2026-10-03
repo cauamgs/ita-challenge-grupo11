@@ -5,9 +5,13 @@ import { formatDate } from '../lib/format'
 import { ROLE_LABEL } from '../lib/labels'
 
 const TABS = [
+  { to: '/inicio', label: 'Início', title: 'Painel da precificação' },
   { to: '/recomendacoes', label: 'Recomendações', title: 'Recomendações de preço' },
   { to: '/metricas', label: 'Métricas', title: 'Métricas da carteira' },
+  { to: '/produtos', label: 'Produtos', title: 'Produtos e histórico de preços' },
+  { to: '/analistas', label: 'Analistas', title: 'Histórico de análises' },
   { to: '/historico', label: 'Histórico', title: 'Histórico de decisões' },
+  { to: '/erp', label: 'Integração ERP', title: 'Integração com o ERP' },
 ]
 
 const headerSelect =
@@ -60,13 +64,13 @@ export function AppShell() {
         </div>
       </header>
       <nav className="border-b border-line bg-surface" aria-label="Navegação principal">
-        <div className="mx-auto flex max-w-[1440px] gap-6 px-4">
+        <div className="mx-auto flex max-w-[1440px] gap-5 overflow-x-auto px-4">
           {TABS.map((tab) => (
             <NavLink
               key={tab.to}
               to={tab.to}
               className={({ isActive }) =>
-                `border-b-[3px] py-3 text-sm font-semibold ${
+                `whitespace-nowrap border-b-[3px] py-3 text-sm font-semibold ${
                   isActive
                     ? 'border-brand-lime text-brand-purple'
                     : 'border-transparent text-ink-muted hover:text-brand-purple'

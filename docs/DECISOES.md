@@ -98,3 +98,37 @@ Registro das escolhas feitas onde o spec era ambíguo ou divergia dos dados. Mai
   data vem da coluna `rodada_data`. Após importar, a rodada nova passa a ser a selecionada. Data já
   existente → 409 com opção "Substituir" (só sem decisões, D09). CSV inválido → 422 com a lista de
   erros por linha exibida no modal. O analista selecionado é gravado em `rounds.imported_by`.
+
+## Dashboard, integração com o ERP e históricos (melhorias de out/2026)
+
+- **D29 — ERP simulado.** O "ERP" é a planilha `seed/base_popular_pet.xlsx` (configurável por
+  `ERP_SOURCE_FILE`). "Sincronizar agora" e a sincronização automática leem esse arquivo; "Importar
+  arquivo do ERP" aceita uma planilha no mesmo layout, o que permite simular mudanças de preço,
+  cadastro e estoque. A carga do seed também é uma sincronização (origem "Carga inicial").
+- **D30 — Histórico de preços sem canal.** A aba Historico_Precos não tem canal; o preço de 01/09
+  coincide com o da loja física, então o histórico é registrado como **Loja física**. Os outros
+  canais começam com um "Registro inicial" na data de referência da aba Precos_Atuais.
+- **D31 — O que é alteração de preço.** Cada SKU × canal tem uma linha do tempo. Uma sincronização
+  registra AUMENTO/REDUÇÃO quando o preço vigente difere do último conhecido; o primeiro preço é
+  INICIAL. Linhas com data de referência **anterior** ao último preço conhecido não geram alteração
+  (evita "voltar" preços ao reimportar uma base mais antiga) e são informadas na mensagem.
+- **D32 — Sincronização tudo ou nada.** O arquivo é validado inteiro antes de gravar; qualquer erro
+  (aba/coluna ausente, canal inválido, SKU fora do cadastro, número/data inválidos) faz a execução
+  terminar com ERRO sem alterar dados, e ela fica no histórico com a mensagem. Produtos ausentes no
+  arquivo não são apagados.
+- **D33 — Agenda.** Frequências diária, semanal (dia da semana) e mensal (dia 1–28, para existir em
+  todos os meses), sempre num horário, no fuso de São Paulo. Um laço em segundo plano no backend
+  verifica a cada 30 s (`SCHEDULER_INTERVAL_SECONDS`) e roda a sincronização vencida; a próxima
+  execução é reagendada antes de rodar e a linha da agenda é travada (`FOR UPDATE SKIP LOCKED`),
+  então não há execução dupla.
+- **D34 — Aceite pessoal do analista.** Sobre os registros do próprio analista em SUBIR/BAIXAR (sem
+  adiados): aprovações + edições com ajuste ≤ 1% do preço atual. Conta registros (inclusive os
+  depois refeitos), porque mede a atuação de cada pessoa; o aceite do painel continua usando só as
+  decisões vigentes.
+- **D35 — Tela inicial.** `/` abre o Dashboard (`/inicio`). Os atalhos levam às telas já filtradas
+  (alto risco pendente, exige aprovação, maior valor em jogo, métricas, histórico de preços,
+  analistas). Sem rodada, o painel mostra só ERP, preços e analistas.
+- **D36 — Decisões aprovadas não alteram o histórico de preço.** O sistema não aplica preços; o
+  histórico do SKU mostra o que veio do ERP. As decisões aparecem separadas, na tabela
+  "Recomendações e decisões" do produto.
+

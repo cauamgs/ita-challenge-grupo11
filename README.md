@@ -6,8 +6,9 @@ com preço sugerido, nível de risco e justificativa. O analista de pricing **v�
 decide** (aprovar, editar, rejeitar ou adiar) e o painel de métricas acompanha a carteira e o efeito
 das decisões. Nenhum preço é alterado sem decisão humana registrada.
 
-Na v1 o motor de decisão fica de fora: as recomendações vêm do arquivo
-`seed/recomendacoes_rodada_2026-09-09.csv`, que representa a saída de uma rodada.
+O motor de decisão (o cálculo das recomendações) ainda não está neste repositório: as rodadas entram
+por importação de CSV no formato da saída do motor (ver `docs/HANDOFF_MOTOR.md`). A base de produtos
+vem de uma **integração simulada com o ERP** — sincronização manual, automática ou por arquivo.
 
 ## Como subir
 
@@ -17,9 +18,9 @@ docker compose up --build   # sobe db, backend e frontend; aplica migrations e r
 open http://localhost:5173  # aplicação  ·  API/Swagger: http://localhost:8000/docs
 ```
 
-Na primeira subida o seed carrega 3 usuários e a base da empresa (40 produtos, 120 estados por
-canal, 40 estoques). Se houver arquivos `seed/recomendacoes_rodada_*.csv`, importa também essas
-rodadas (a de 09/09/2026 tem 120 recomendações: 38 BAIXAR, 20 SUBIR, 16 MANTER, 46 REVISAR). O seed
+Na primeira subida o seed carrega 3 usuários e faz a **sincronização inicial com o ERP** (40
+produtos, 120 preços por canal, 40 estoques e o histórico de preços). Se houver arquivos `seed/recomendacoes_rodada_*.csv`,
+importa também essas rodadas (a de 09/09/2026 tem 120 recomendações: 38 BAIXAR, 20 SUBIR, 16 MANTER, 46 REVISAR). O seed
 é idempotente: rodar de novo não duplica nada. Para quem vai implementar o motor de decisão, ver
 `docs/HANDOFF_MOTOR.md`.
 
@@ -37,6 +38,10 @@ O Postgres não publica porta no host; para consultar: `docker compose exec db p
 
 ## Telas
 
+- **Início** (`/inicio`, tela inicial): dashboard da plataforma — situação da base do ERP, KPIs da
+  rodada e da carteira, atalhos para as análises já filtradas (alto risco, exige aprovação, maior
+  valor em jogo, métricas, histórico de preços, analistas), progresso da rodada, decisões por dia,
+  alterações de preço por mês, pendentes de maior valor, atividade recente e analistas.
 - **Recomendações** (`/recomendacoes`): resumo da rodada, filtros (canal, curva, recomendação, risco,
   status, só exige aprovação, busca) guardados na URL, tabela ordenável com paginação de 25, drawer de
   detalhe (justificativa, números, motivos de revisão, alertas de dados, regras R01–R12 citadas,
@@ -46,8 +51,19 @@ O Postgres não publica porta no host; para consultar: `docker compose exec db p
   de revisão, SKUs na faixa competitiva, margem bruta média, taxa de reversão (n/d na v1);
   distribuição das recomendações, índice de preço por curva, decisões por recomendação, motivos de
   rejeição; top 10 por valor em jogo. Filtros de rodada, canal e curva.
+- **Produtos** (`/produtos`): catálogo vindo do ERP com preço por canal, última alteração de preço,
+  estoque e pendências; filtros e ordenação por alteração mais recente. **Detalhe do SKU**
+  (`/produtos/:sku`): preço, custo, piso e margens por canal, estoque, gráfico da evolução do preço,
+  histórico de alterações (aumentos, reduções, registro inicial, com motivo e origem) e todas as
+  recomendações/decisões do SKU.
+- **Analistas** (`/analistas`): histórico de análises por analista — decisões, tipo, aceite pessoal,
+  rodadas e última atividade; o detalhe traz decisões por dia, perfil, motivos de rejeição e a lista
+  de análises com exportação CSV.
 - **Histórico** (`/historico`): registro de auditoria de todas as decisões de todas as rodadas, com
   filtros de analista, decisão, canal e período, e exportação CSV.
+- **Integração ERP** (`/erp`): situação da integração, **Sincronizar agora**, **Importar arquivo do
+  ERP** (.xlsx), **sincronização automática** (diária, semanal ou mensal em dia fixo — ex.: todo dia
+  10 às 06:00 — com prévia da próxima execução) e histórico de todas as sincronizações.
 
 O analista é escolhido no seletor do topo (sem login); toda decisão grava esse nome.
 
@@ -66,6 +82,19 @@ O analista é escolhido no seletor do topo (sem login); toda decisão grava esse
 4. **Exportar aprovadas** baixa `decisoes_<rodada>_<AAAA-MM-DD_HHMM>.csv` com as decisões vigentes
    Aprovar/Editar, para aplicação nos sistemas de venda (fora do escopo da v1).
 
+## Integração com o ERP (simulada)
+
+O ERP da Popular Pet é simulado pela planilha `seed/base_popular_pet.xlsx` (variável
+`ERP_SOURCE_FILE` para usar outro arquivo). Cada sincronização valida a planilha inteira, atualiza
+cadastro, preço/custos por canal e estoque, registra cada mudança de preço no histórico do SKU e fica
+gravada com status, contagens e mensagem. Três formas de sincronizar:
+
+- **Manual:** botão "Sincronizar agora" na tela Integração ERP (`POST /api/erp/sync`).
+- **Automática:** configurada na mesma tela — diária, semanal (dia da semana) ou mensal (dia 1–28),
+  num horário; o backend verifica a agenda a cada 30 s (`SCHEDULER_INTERVAL_SECONDS`).
+- **Arquivo:** "Importar arquivo do ERP" com uma planilha no mesmo layout (`POST /api/erp/import`) —
+  edite preços na planilha para simular alterações vindas do ERP.
+
 ## Como importar uma rodada
 
 Pela interface: **Recomendações → Importar rodada**, escolher o CSV. Pela API:
@@ -74,8 +103,9 @@ Pela interface: **Recomendações → Importar rodada**, escolher o CSV. Pela AP
 curl -F "file=@recomendacoes_rodada_2026-09-16.csv" http://localhost:8000/api/rounds/import
 ```
 
-- O CSV segue as colunas de `seed/recomendacoes_rodada_2026-09-09.csv` (ver
-  `docs/CONTEXTO_DESAFIO.md`); a data da rodada vem de `rodada_data`.
+- O CSV segue as colunas descritas em `docs/CONTEXTO_DESAFIO.md` ("O arquivo de recomendações");
+  a data da rodada vem de `rodada_data`. Arquivos `seed/recomendacoes_rodada_*.csv` são importados
+  pelo seed e ficam fora do git (`.gitignore`).
 - `201` cria a rodada; `409` se já existir rodada na data (`?replace=true` substitui, desde que ela
   ainda não tenha decisões); `422` traz a lista de erros por linha (coluna ausente, valor inválido,
   SKU × canal duplicado, SKU fora do cadastro).
@@ -88,18 +118,20 @@ docker-compose.yml   db (postgres:16) · backend (FastAPI :8000) · frontend (Vi
 backend/
   app/api/           routers FastAPI (contrato em docs/API.md) e tratamento de erros em português
   app/services/      regras derivadas: status vigente, valor em jogo, piso de margem, resumo,
-                     decisões e avisos R01/R02, aceite e métricas, exportações
+                     decisões e avisos R01/R02, aceite e métricas, exportações, sincronização
+                     com o ERP (erp_sync), agenda (erp_schedule), produtos, analistas, dashboard
+  app/scheduler.py   laço em segundo plano que roda a sincronização automática
   app/repositories/  consultas SQLAlchemy (decisão vigente = mais recente por recomendação)
   app/models/        models SQLAlchemy 2 (schema em docs/DATA_MODEL.md)
   app/schemas/       modelos Pydantic v2 de entrada/saída
   app/engine/        ponto de extensão do motor (RecommendationEngine, CsvImportEngine)
   app/explain/       ponto de extensão da IA generativa (Explainer, StaticExplainer)
-  app/seed/          seed idempotente (xlsx da empresa + CSV da rodada + usuários)
+  app/seed/          seed idempotente (usuários + sincronização inicial com o ERP + CSVs de rodada)
   alembic/           migrations (nada de create_all)
   tests/             pytest: seed, importação, API de leitura, decisões, métricas, histórico
 frontend/src/
   app/               App, rotas, sessão (analista e rodada)
-  pages/             Recomendações, Métricas, Histórico
+  pages/             Início, Recomendações, Métricas, Produtos, Analistas, Histórico, Integração ERP
   components/        AppShell, Tag, Button, Drawer, Modal, Table, gráficos (Recharts)…
   api/               cliente HTTP, tipos e hooks TanStack Query
   lib/               formatação pt-BR (moeda, %, datas), rótulos, regras R01–R12

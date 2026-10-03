@@ -127,6 +127,54 @@ create table decisions (
 create index on decisions (recommendation_id, created_at desc);
 ```
 
+## Integração com o ERP (migration 0002)
+
+```sql
+create type sync_trigger_t   as enum ('INICIAL','MANUAL','AGENDADO','ARQUIVO');
+create type sync_status_t    as enum ('EM_ANDAMENTO','SUCESSO','ERRO');
+create type sync_frequency_t as enum ('DIARIA','SEMANAL','MENSAL');
+create type price_change_t   as enum ('INICIAL','AUMENTO','REDUCAO');
+
+-- Cada execução de sincronização (sucesso ou erro)
+create table erp_sync_runs (
+  id uuid primary key default gen_random_uuid(),
+  trigger sync_trigger_t not null, source text not null, status sync_status_t not null,
+  triggered_by uuid references users(id),
+  started_at timestamptz not null, finished_at timestamptz, reference_date date,
+  products_total int not null default 0, products_new int not null default 0,
+  products_updated int not null default 0, prices_changed int not null default 0,
+  history_imported int not null default 0, stock_updated int not null default 0,
+  message text
+);
+
+-- Agenda da sincronização automática (linha única, id = 1)
+create table erp_sync_schedule (
+  id smallint primary key check (id = 1),
+  enabled boolean not null default false,
+  frequency sync_frequency_t not null,
+  weekday smallint check (weekday between 0 and 6),          -- semanal (0 = segunda)
+  day_of_month smallint check (day_of_month between 1 and 28), -- mensal
+  time_of_day time not null,
+  next_run_at timestamptz, last_run_at timestamptz,
+  updated_by uuid references users(id), updated_at timestamptz
+);
+
+-- Histórico de preço por SKU × canal
+create table price_history (
+  id uuid primary key default gen_random_uuid(),
+  sku text not null references products(sku),
+  channel channel_t not null,
+  effective_date date not null,
+  old_price numeric(12,2), new_price numeric(12,2) not null,
+  variation numeric(8,4),                       -- new/old − 1
+  change_type price_change_t not null,
+  source text not null,                         -- ERP_HISTORICO | ERP_SYNC
+  reason text, origin text,
+  sync_run_id uuid references erp_sync_runs(id),
+  created_at timestamptz not null default now()
+);
+```
+
 ## Regras derivadas (implementar em services, não em SQL)
 
 - **Decisão vigente** de uma recomendação = a mais recente em `decisions` (por `created_at`).
@@ -143,7 +191,9 @@ create index on decisions (recommendation_id, created_at desc);
 ## Seed
 
 1. `users`: Ana Souza (ANALISTA), Bruno Lima (ANALISTA), Carla Menezes (GESTOR).
-2. `products`, `product_channel_state`, `stock_snapshot` a partir de `seed/base_popular_pet.xlsx`
-   (abas Produtos, Precos_Atuais, Custos_Margens, Estoque; `header=2`; datas `dd/mm/aaaa`).
+2. `products`, `product_channel_state`, `stock_snapshot` e `price_history` por uma **sincronização
+   inicial com o ERP** (`erp_sync_runs.trigger = INICIAL`) a partir de `seed/base_popular_pet.xlsx`
+   (abas Produtos, Precos_Atuais, Custos_Margens, Estoque, Historico_Precos; `header=2`; datas
+   `dd/mm/aaaa`). Cria também a agenda padrão (desligada, diária às 06:00).
 3. `rounds` + `recommendations` a partir de `seed/recomendacoes_rodada_2026-09-09.csv`.
 4. Idempotente: usar `on conflict do nothing` / verificar existência antes de inserir.

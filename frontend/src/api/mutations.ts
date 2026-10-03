@@ -48,6 +48,8 @@ export function useCreateDecision(recommendationId: string) {
       queryClient.invalidateQueries({ queryKey: ['rounds'] })
       queryClient.invalidateQueries({ queryKey: ['recommendations'] })
       queryClient.invalidateQueries({ queryKey: ['decisions'] })
+      for (const key of ['dashboard', 'products', 'analysts'])
+        queryClient.invalidateQueries({ queryKey: [key] })
     },
   })
 }
@@ -69,6 +71,9 @@ export function useImportRound() {
         body,
       })
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rounds'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rounds'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }

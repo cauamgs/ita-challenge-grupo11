@@ -1,4 +1,14 @@
-import type { Channel, DecisionType, ItemStatus, RecommendationType, RiskLevel } from '../api/types'
+import type {
+  Channel,
+  DecisionType,
+  ItemStatus,
+  PriceChangeType,
+  RecommendationType,
+  RiskLevel,
+  SyncFrequency,
+  SyncStatus,
+  SyncTrigger,
+} from '../api/types'
 
 export const CHANNEL_LABEL: Record<Channel, string> = {
   LOJA_FISICA: 'Loja física',
@@ -44,3 +54,43 @@ export const REJECTION_REASONS = [
   'Dados incorretos',
   'Outro',
 ] as const
+
+export const SYNC_TRIGGER_LABEL: Record<SyncTrigger, string> = {
+  INICIAL: 'Carga inicial',
+  MANUAL: 'Manual',
+  AGENDADO: 'Automática',
+  ARQUIVO: 'Arquivo',
+}
+
+export const SYNC_STATUS_LABEL: Record<SyncStatus, string> = {
+  SUCESSO: 'Sucesso',
+  ERRO: 'Erro',
+  EM_ANDAMENTO: 'Em andamento',
+}
+
+export const FREQUENCY_LABEL: Record<SyncFrequency, string> = {
+  DIARIA: 'Diária',
+  SEMANAL: 'Semanal',
+  MENSAL: 'Mensal',
+}
+
+export const WEEKDAY_LABEL = [
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+  'Domingo',
+]
+
+export const PRICE_CHANGE_LABEL: Record<PriceChangeType, string> = {
+  AUMENTO: 'Aumento',
+  REDUCAO: 'Redução',
+  INICIAL: 'Registro inicial',
+}
+
+export const PRICE_SOURCE_LABEL = {
+  ERP_HISTORICO: 'Histórico do ERP',
+  ERP_SYNC: 'Sincronização',
+} as const

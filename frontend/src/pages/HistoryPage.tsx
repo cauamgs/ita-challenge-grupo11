@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useDecisionHistory } from '../api/queries'
 import { buildQuery } from '../api/client'
 import type { Channel, DecisionType, HistoryFilters } from '../api/types'
@@ -135,8 +136,22 @@ export function HistoryPage() {
               data?.items.map((d, i) => (
                 <tr key={d.id} className={`border-b border-line ${i % 2 ? 'bg-zebra' : ''}`}>
                   <Td className="tabular whitespace-nowrap">{formatDateTime(d.created_at)}</Td>
-                  <Td className="whitespace-nowrap">{d.user_name}</Td>
-                  <Td className="font-semibold">{d.sku}</Td>
+                  <Td className="whitespace-nowrap">
+                    <Link
+                      to={`/analistas/${d.user_id}`}
+                      className="hover:text-brand-purple hover:underline"
+                    >
+                      {d.user_name}
+                    </Link>
+                  </Td>
+                  <Td>
+                    <Link
+                      to={`/produtos/${d.sku}`}
+                      className="font-semibold text-brand-purple hover:underline"
+                    >
+                      {d.sku}
+                    </Link>
+                  </Td>
                   <Td>{d.product_name}</Td>
                   <Td className="whitespace-nowrap">{CHANNEL_LABEL[d.channel]}</Td>
                   <Td className="tabular">{formatDate(d.round_date)}</Td>

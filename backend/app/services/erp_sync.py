@@ -253,7 +253,9 @@ def _change(old: Decimal | None, new: Decimal) -> tuple[PriceChangeType, Decimal
     return kind, (new / old - 1).quantize(Decimal("0.0001")) if old else None
 
 
-def _apply(session: Session, data: ErpData, run: ErpSyncRun) -> None:
+def _apply(session: Session, data: ErpData, run: ErpSyncRun) -> int:
+    """Grava os dados no banco. Devolve quantas linhas de preço são mais antigas que o conhecido."""
+    stale_rows = 0
     # 1. Cadastro de produtos
     existing = {p.sku: p for p in session.scalars(select(Product))}
     for row in data.products:
@@ -324,8 +326,12 @@ def _apply(session: Session, data: ErpData, run: ErpSyncRun) -> None:
     # 3. Preço e custos vigentes por canal
     for row in data.channels:
         events = timeline.get((row.sku, row.channel), [])
-        last = events[-1].new_price if events else None
-        if last != row.price:
+        last = events[-1] if events else None
+        # Dados mais antigos que o último preço conhecido não geram alteração (só atualizam o
+        # estado daquela data); mesma data com preço diferente é uma correção do ERP.
+        if last is not None and row.reference_date < last.effective_date:
+            stale_rows += 1
+        elif last is None or last.new_price != row.price:
             event = add_event(
                 row.sku,
                 row.channel,
@@ -363,9 +369,10 @@ def _apply(session: Session, data: ErpData, run: ErpSyncRun) -> None:
             .on_conflict_do_update(index_elements=["sku", "reference_date"], set_=values)
         )
         run.stock_updated += 1
+    return stale_rows
 
 
-def _summary(run: ErpSyncRun) -> str:
+def _summary(run: ErpSyncRun, stale_rows: int = 0) -> str:
     parts = [f"{run.products_total} produtos lidos"]
     if run.products_new:
         parts.append(f"{run.products_new} novos")
@@ -378,6 +385,11 @@ def _summary(run: ErpSyncRun) -> str:
     )
     if run.history_imported:
         parts.append(f"{run.history_imported} registro(s) de histórico importado(s)")
+    if stale_rows:
+        parts.append(
+            f"{stale_rows} preço(s) com data anterior à última sincronização "
+            "(mantido o mais recente)"
+        )
     return " · ".join(parts)
 
 
@@ -411,9 +423,9 @@ def run_sync(
     run_id = run.id
 
     try:
-        _apply(session, read_workbook(content), run)
+        stale_rows = _apply(session, read_workbook(content), run)
         run.status = SyncStatus.SUCESSO
-        run.message = _summary(run)
+        run.message = _summary(run, stale_rows)
         run.finished_at = datetime.now(UTC)
         session.commit()
         return run

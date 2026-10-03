@@ -77,6 +77,41 @@ Documentação automática em `/docs` (Swagger) deve funcionar.
   dados da recomendação e do produto embutidos.
 - `GET /decisions/export` (mesmos filtros) → CSV.
 
+## Dashboard
+- `GET /dashboard?round_id=` → painel inicial: progresso da rodada (decididos, pendentes, adiados,
+  sem ação, pendentes de alto risco e que exigem aprovação), KPIs (aceite, tempo estimado, faixa
+  competitiva, margem), top 5 pendentes por valor em jogo, situação do ERP, alterações de preço por
+  mês (6 meses) e nos últimos 90 dias, decisões por dia (14 dias), analistas e atividade recente.
+  Sem `round_id`, usa a rodada mais recente; sem rodada, `round`, `kpis` = null.
+
+## Integração ERP (simulada)
+- `GET /erp/status` → fonte, última sincronização, último sucesso, agenda, nº de produtos, preços por
+  canal, alterações de preço registradas, data de referência.
+- `POST /erp/sync` `{ user_id }` → sincroniza agora lendo a planilha padrão; 201 com a execução
+  (`status` SUCESSO ou ERRO, contagens e `message`).
+- `POST /erp/import` (multipart `file` .xlsx, campo `user_id`) → mesma sincronização a partir de um
+  arquivo exportado do ERP. Arquivo inválido gera execução com `status=ERRO` (nada é gravado); vazio → 422.
+- `GET /erp/syncs?page=&page_size=` → histórico de execuções, mais recente primeiro.
+- `GET /erp/schedule` / `PUT /erp/schedule`
+  `{ enabled, frequency: DIARIA|SEMANAL|MENSAL, weekday (0=segunda…6=domingo), day_of_month (1–28),
+  time_of_day "HH:MM", user_id }` → agenda da sincronização automática, com `description`
+  ("Todo dia 10 do mês às 06:00") e `next_run_at`.
+- `POST /erp/schedule/preview` (mesmo corpo) → `{ description, next_run_at }` sem salvar.
+
+## Produtos
+- `GET /products?q=&category=&abc_curve=&status=&sort=sku|recentes&page=&page_size=` → catálogo com
+  preço vigente por canal, estoque, última alteração de preço, nº de alterações e pendências na rodada atual.
+- `GET /products/categories` → categorias.
+- `GET /products/{sku}` → cadastro, estado por canal (preço, custos, margens, piso), estoque,
+  `price_history` (INICIAL/AUMENTO/REDUCAO, mais recente primeiro) e recomendações do SKU em todas as
+  rodadas com a decisão vigente.
+
+## Analistas
+- `GET /analysts` → por usuário: total de decisões, por tipo, aceite pessoal (SUBIR/BAIXAR aprovadas
+  ou editadas em até 1%, sem adiadas), rodadas, decisões nos últimos 7 dias, última atividade.
+- `GET /analysts/{id}?days=30` → o mesmo + decisões por dia, por tipo de recomendação e motivos de
+  rejeição. A lista de decisões do analista vem de `GET /decisions?user_id=`.
+
 ## Saúde
 - `GET /health` → `{ "status": "ok", "db": "ok" }`.
 

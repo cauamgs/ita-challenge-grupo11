@@ -38,10 +38,11 @@ Cada aba tem 2 linhas de título antes do cabeçalho (`pd.read_excel(..., header
 | Regras_Negocio | 12 | ID, Tema, Regra fictícia, Ação esperada, Criticidade |
 | Indicadores_Atuais | 8 | Indicador, Valor fictício atual, Meta fictícia, Frequência, Responsável |
 
-O seed já carrega no PostgreSQL as abas **Produtos**, **Precos_Atuais + Custos_Margens** (tabela
-`product_channel_state`) e **Estoque** (`stock_snapshot`). As demais (vendas, concorrência,
-histórico, promoções) **não estão no banco**: leia direto do xlsx ou crie tabelas novas com
-migration Alembic (`backend/alembic/versions/`), seguindo o padrão de `backend/app/seed/base_xlsx.py`.
+A sincronização com o ERP (`backend/app/services/erp_sync.py`) carrega no PostgreSQL as abas
+**Produtos**, **Precos_Atuais + Custos_Margens** (`product_channel_state`, um registro por data de
+referência), **Estoque** (`stock_snapshot`) e **Historico_Precos** (`price_history`, a linha do tempo
+de preço por SKU × canal). As demais (vendas, concorrência, promoções) **não estão no banco**: leia
+direto do xlsx ou estenda a sincronização com tabelas novas (migration em `backend/alembic/versions/`).
 
 ## 2. O contrato do motor
 

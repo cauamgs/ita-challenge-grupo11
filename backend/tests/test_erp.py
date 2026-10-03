@@ -229,3 +229,29 @@ def test_seed_creates_initial_sync_once(session: Session) -> None:
     seed_all(session, SEED_DIR)
     assert session.scalar(select(func.count()).select_from(ErpSyncRun)) == 1
     assert erp_schedule.get_schedule(session).enabled is False
+
+
+def test_older_file_does_not_revert_newer_prices(api_client: TestClient, session: Session) -> None:
+    _initial(session)
+    newer = modified_workbook(
+        {
+            "Precos_Atuais": [
+                ({"SKU": "PP-0001", "Canal": "E-commerce"}, {"Preço atual": 4.49}),
+                *[
+                    ({"SKU": f"PP-{n:04d}"}, {"Data referência": "01/10/2026"})
+                    for n in range(1, 41)
+                ],
+            ]
+        }
+    )
+    assert _upload(api_client, newer).json()["prices_changed"] == 1
+
+    # a base padrão (09/09) é mais antiga: não pode registrar "volta" ao preço anterior
+    run = api_client.post("/api/erp/sync", json={}).json()
+    assert run["status"] == "SUCESSO"
+    assert run["prices_changed"] == 0
+    assert "data anterior à última sincronização" in run["message"]
+    detail = api_client.get("/api/products/PP-0001").json()
+    ecommerce = next(c for c in detail["channels"] if c["channel"] == "ECOMMERCE")
+    assert (ecommerce["current_price"], ecommerce["reference_date"]) == (4.49, "2026-10-01")
+    assert detail["price_history"][0]["new_price"] == 4.49

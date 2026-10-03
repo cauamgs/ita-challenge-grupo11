@@ -75,13 +75,18 @@ export function Td({
   children,
   numeric,
   className = '',
+  title,
 }: {
   children: ReactNode
   numeric?: boolean
   className?: string
+  title?: string
 }) {
   return (
-    <td className={`px-2 py-2 align-middle ${numeric ? 'tabular text-right' : ''} ${className}`}>
+    <td
+      title={title}
+      className={`px-2 py-2 align-middle ${numeric ? 'tabular text-right' : ''} ${className}`}
+    >
       {children}
     </td>
   )

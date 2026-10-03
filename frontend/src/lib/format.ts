@@ -49,3 +49,49 @@ export function parsePrice(text: string): number | null {
   const value = Number(normalized)
   return Number.isFinite(value) ? value : null
 }
+
+/** "há 5 min", "há 3 h", "há 2 dias"; datas futuras: "em 3 h", "em 2 dias". */
+export function formatRelative(value: string | null | undefined, now: Date = new Date()): string {
+  if (!value) return EMPTY
+  const diff = new Date(value).getTime() - now.getTime()
+  const future = diff > 0
+  const minutes = Math.round(Math.abs(diff) / 60_000)
+  let text: string
+  if (minutes < 1) return future ? 'em instantes' : 'agora há pouco'
+  if (minutes < 60) text = `${minutes} min`
+  else if (minutes < 60 * 24) text = `${Math.round(minutes / 60)} h`
+  else {
+    const days = Math.round(minutes / (60 * 24))
+    text = `${days} ${days === 1 ? 'dia' : 'dias'}`
+  }
+  return future ? `em ${text}` : `há ${text}`
+}
+
+const WEEKDAY_SHORT = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.']
+
+/** "sáb., 10/10/2026 às 06:00" */
+export function formatWeekdayDateTime(value: string | null | undefined): string {
+  if (!value) return EMPTY
+  const date = new Date(value)
+  const [day, time] = formatDateTime(value).split(' ')
+  return `${WEEKDAY_SHORT[date.getDay()]}, ${day} às ${time}`
+}
+
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+/** "2026-09" → "set/26" */
+export function formatMonth(value: string): string {
+  const [y, m] = value.split('-')
+  return `${MONTHS[Number(m) - 1]}/${y.slice(2)}`
+}
+
+/** "2026-09-30" → "30/09" */
+export function formatDayMonth(value: string): string {
+  const [, m, d] = value.slice(0, 10).split('-')
+  return `${d}/${m}`
+}
+
+/** plural(1, 'redução', 'reduções') → "1 redução" */
+export function plural(n: number, singular: string, pluralForm: string): string {
+  return `${n} ${n === 1 ? singular : pluralForm}`
+}
